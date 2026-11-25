@@ -8,6 +8,7 @@ from lgsgmm.loss import matching_loss
 from lgsgmm.metrics import association_counts, scores
 from lgsgmm.model import PaperLGSGMM, local_spectrum, mutual_matches
 from lgsgmm.postprocess import refine, weighted_similarity
+from lgsgmm.distributed import EvaluationSampler
 
 
 def view(points, identities):
@@ -19,6 +20,11 @@ def view(points, identities):
 
 
 class ReproductionTests(unittest.TestCase):
+    def test_distributed_evaluation_has_no_duplicates(self):
+        for count in (1, 3, 5, 8):
+            shards = [list(EvaluationSampler(range(count), 4, rank)) for rank in range(4)]
+            self.assertEqual(sorted(index for shard in shards for index in shard), list(range(count)))
+
     def test_mda_penalizes_false_matches(self):
         views = [view([(3, 3), (5, 5)], [1, 2]), view([(3, 3), (5, 5), (7, 7)], [1, 2, 3])]
         counts = association_counts(views, [(0, 0), (1, 2)])

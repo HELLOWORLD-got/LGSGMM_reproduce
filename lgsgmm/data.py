@@ -19,6 +19,8 @@ class MDMTDataset(Dataset):
                 row = json.loads(line)
                 if row['frame'] % stride == 0:
                     self.rows.append(row)
+                    if limit is not None and len(self.rows) >= limit:
+                        break
         if limit is not None:
             self.rows = self.rows[:limit]
         if not self.rows:

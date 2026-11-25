@@ -47,11 +47,11 @@ python -m lgsgmm.run evaluate --device cuda:0 --checkpoint runs/mdmt_paper/best.
 ```
 
 All configuration paths are relative to the repository root. Set `CUDA_VISIBLE_DEVICES`
-externally to choose the physical GPU. The implementation runs on one CUDA device or
-CPU. Batch size is the number of image pairs per optimizer update. It accumulates
-pair losses one at a time to bound activation memory while retaining every graph's
-actual target count. BatchNorm is therefore updated per view. Multi-GPU DDP has not
-been implemented or validated.
+externally to choose the physical GPU. The implementation supports one CUDA device, CPU, and torchrun DDP. Batch size is
+the global number of image pairs per optimizer update and must be divisible by the
+process count. Pair losses accumulate locally, with gradients synchronized at the
+last pair of each local batch. BatchNorm is updated per view on each rank, with
+rank-zero buffers synchronized before validation. SyncBatchNorm is not enabled.
 
 The default run keeps original 1920x1080 input, uses seven attention layers, six
 neighbors, Adam at 1e-4, 200 epochs, and ReduceLROnPlateau with patience 5 and factor
@@ -147,3 +147,51 @@ MDA false-match penalties, mutual one-to-one matching and known geometric transf
 CPU smoke training, two-stage evaluation, checkpoint save/reload and resume were run.
 The resumed second epoch matched uninterrupted two-epoch training for every model
 parameter and buffer. Full-resolution checks are recorded in `runs/`.
+
+## Four A6000 GPUs
+
+From the server project directory, activate the Python environment and run the small
+check first. The script selects visible devices 0,1,2,3 and launches four NCCL DDP
+processes. An existing CUDA_VISIBLE_DEVICES environment variable takes precedence.
+
+```bash
+bash scripts/train_4gpu.sh smoke
+```
+
+The small configuration is `configs/mdmt_4gpu_smoke.json`. It uses 16 training pairs,
+8 validation pairs, one epoch, maximum image side 640, seven attention layers,
+FP32 and global batch size 4 (one pair per rank). Its backbone initializes randomly
+to avoid checkpoint downloads during the execution check. It runs both association
+stages and checks saved weight reload. It writes into `runs/mdmt_4gpu_smoke/`.
+`Smoke passed` confirms completion. Startup logs list all four rank/device mappings.
+
+```bash
+# Increase the small check to original input resolution.
+bash scripts/train_4gpu.sh smoke --max-side 1920 --output-dir runs/mdmt_4gpu_smoke_fullres
+
+# Train the complete dataset at original resolution using ImageNet initialization.
+bash scripts/train_4gpu.sh train
+
+# Continue the full run, preserving per-rank RNG and optimizer state.
+bash scripts/train_4gpu.sh train --resume runs/mdmt_4gpu/last.pt
+
+# Evaluate a full-training checkpoint, using all four GPUs.
+bash scripts/train_4gpu.sh evaluate --checkpoint runs/mdmt_4gpu/best.pt
+```
+
+The full configuration is `configs/mdmt_4gpu.json`, with 200 epochs, global batch 4,
+2 loading workers per process and original image resolution. To use two pairs per
+rank, pass `--batch-size 8`. Single-process commands remain supported. Resume requires
+the same process count as the saved run. A four-rank checkpoint can be evaluated in
+one process because saved parameter names do not have a DDP `module.` prefix.
+
+The training DistributedSampler reshuffles with the epoch and pads a split by at most
+world_size-1 pairs to give all ranks equal training steps. Validation and test use an
+unpadded sampler. Counts and rows are gathered before computing dataset metrics, so
+uneven splits and ranks with no evaluation examples are handled correctly. Rank zero
+alone writes checkpoints, configurations, logs and CSV results. Each checkpoint stores
+all ranks' RNG states and the process count.
+
+Local checks use four CPU/Gloo processes. The four-A6000 CUDA/NCCL run is to be checked
+on the server. Single-GPU and four-GPU training can differ because per-rank random
+sampling and BatchNorm updates differ.
