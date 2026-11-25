@@ -1,0 +1,44 @@
+{
+  "data_dir": "data/processed/MDMT",
+  "output_dir": "runs/mdmt_paper",
+  "seed": 42,
+  "epochs": 200,
+  "batch_size": 4,
+  "workers": 0,
+  "learning_rate": 0.0001,
+  "scheduler_patience": 5,
+  "scheduler_factor": 0.5,
+  "train_stride": 1,
+  "val_stride": 1,
+  "image_max_side": null,
+  "device": "auto",
+  "amp": false,
+  "gradient_clip": null,
+  "model": {
+    "descriptor_dim": 256,
+    "layers": 7,
+    "heads": 4,
+    "neighbors": 6,
+    "pga": true,
+    "lga": true,
+    "backbone_weights": "DEFAULT",
+    "imagenet_normalize": true,
+    "match_threshold": 0.0
+  },
+  "loss": {
+    "classification_weight": 0.6,
+    "triplet_weight": 0.3,
+    "margin": 1.0
+  },
+  "sgmm": {
+    "alpha": 0.8,
+    "sigma2": 1.0,
+    "uniform_density": 0.0001,
+    "posterior_threshold": 0.5,
+    "iterations": 50,
+    "tolerance": 1e-05,
+    "ransac_threshold": 20.0,
+    "mapping_threshold": 80.0
+  },
+  "test_manifest": "test_official.jsonl"
+}

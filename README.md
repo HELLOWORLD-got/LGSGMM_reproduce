@@ -25,3 +25,7 @@ The [training loss curve](<train%20loss.png>) shows stable convergence and can b
 ## Usage
 
 We welcome the use of this model in both academic and engineering projects. In our tests, the model can still associate previously unseen target categories that do not appear in the MDMT dataset, including military targets, with good accuracy.
+
+## Paper reproduction with the supplied MDMT data
+
+A configuration-driven paper implementation and data adapter are available. See [REPRODUCTION.md](REPRODUCTION.md) for validated data layout, training/evaluation commands, implementation choices and verification. The default training entry point is `python train_main_resnet.py`; configuration lives in `configs/mdmt.json`.
